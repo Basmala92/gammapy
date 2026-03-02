@@ -81,7 +81,10 @@ def plot_spectrum_datasets_off_regions(
 
         # create proxy artist for the custom legend
         if legend:
-            handle = Patch(**plot_kwargs)
+            handle_kwargs = plot_kwargs.copy()
+            if "color" in handle_kwargs:
+                handle_kwargs["edgecolor"] = handle_kwargs.pop("color")
+            handle = Patch(**handle_kwargs)
             handles.append(handle)
             labels.append(dataset.name)
 
