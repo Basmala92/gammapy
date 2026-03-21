@@ -1,0 +1,50 @@
+%YAML 1.1
+---
+$schema: "http://stsci.edu/schemas/yaml-schema/draft-01"
+id: "asdf://gammapy.org/gammapy/schemas/map_axis-1.0.0"
+
+title: MapAxis
+description: >-
+  Represents an axis of a Gammapy map defined by
+  a sequence of node values, an interpolation
+  method, and a physical unit.
+
+type: object
+properties:
+  name:
+    description: Axis name.
+    type: string
+
+  nodes:
+    description: >-
+       Array of node values interpreted as either bin
+       edges or centers according to node_type.
+    tag: "tag:stsci.edu:asdf/core/ndarray-1.*"
+
+  interp:
+    description: >-
+      Interpolation method used to transform
+      between axis and pixel coordinates.
+    type: string
+    enum: [lin, log, sqrt]
+
+  unit:
+    description: String specifying the data units.
+    type: string
+
+  node_type:
+    description: >-
+     Flag indicating whether coordinate nodes correspond
+     to pixel edges or pixel centers.
+    type: string
+    enum: [edges, center]
+
+  boundary_type:
+    description: >-
+     Flag indicating boundary condition for the axis.
+     Periodic boundary is only supported for interp=lin.
+    type: string
+    enum: [monotonic, periodic]
+
+required: [name, nodes, interp, unit, node_type]
+...

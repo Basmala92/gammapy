@@ -209,3 +209,9 @@ showcontent = true
 
 [project.scripts]
 gammapy = "gammapy.scripts.main:cli"
+
+[project.entry-points."asdf.extensions"]
+gammapy = "gammapy.io.asdf.integration:get_extensions"
+
+[project.entry-points."asdf.resource_mappings"]
+gammapy = "gammapy.io.asdf.integration:get_resource_mappings"
