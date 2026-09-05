@@ -4,7 +4,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from gammapy.irf import PSFMap, RecoPSFMap
-from gammapy.maps import MapAxis, RegionGeom
+from gammapy.maps import MapAxis, RegionGeom, WcsGeom
 import astropy.units as u
 
 asdf = pytest.importorskip("asdf")
@@ -21,7 +21,6 @@ def test_psfmap_roundtrip(tmp_path):
     psf = PSFMap.from_gauss(
         energy_axis_true=energy_axis_true, sigma=[0.1, 0.2, 0.3] * u.deg, geom=geom
     )
-
     with asdf.AsdfFile() as af:
         af["psf"] = psf
         af.write_to(file_path)
@@ -41,10 +40,40 @@ def test_psfmap_roundtrip(tmp_path):
         assert result.exposure_map.unit == psf.exposure_map.unit
 
 
+def test_psfmap_roundtrip_no_exposure(tmp_path):
+    file_path = tmp_path / "test.asdf"
+    energy_axis_true = MapAxis.from_energy_bounds(
+        "1 TeV", "10 TeV", nbin=3, name="energy_true"
+    )
+    geom = WcsGeom.create(
+        skydir=(0, 0), frame="galactic", npix=(3, 3), binsz=20.0 * u.deg
+    )
+    psf = PSFMap.from_gauss(
+        energy_axis_true=energy_axis_true, sigma=[0.1, 0.2, 0.3] * u.deg, geom=geom
+    )
+    psf.exposure_map = None
+
+    with asdf.AsdfFile() as af:
+        af["psf"] = psf
+        af.write_to(file_path)
+    with asdf.open(file_path) as af:
+        result = af["psf"]
+        assert type(result) is PSFMap
+        assert result.required_axes == ["rad", "energy_true"]
+
+        assert_allclose(result.psf_map.data, psf.psf_map.data)
+        assert result.psf_map.geom == psf.psf_map.geom
+        assert result.psf_map.unit == psf.psf_map.unit
+
+        assert result.exposure_map is None
+
+
 def test_recopsfmap_roundtrip(tmp_path):
     file_path = tmp_path / "test.asdf"
     energy_axis = MapAxis.from_energy_bounds("1 TeV", "10 TeV", nbin=3, name="energy")
-    geom = RegionGeom.create("icrs;circle(0, 0, 0.1)")
+    geom = WcsGeom.create(
+        skydir=(0, 0), frame="galactic", npix=(3, 3), binsz=20.0 * u.deg
+    )
     reco_psf = RecoPSFMap.from_gauss(
         energy_axis=energy_axis, sigma=[0.1, 0.2, 0.3] * u.deg, geom=geom
     )

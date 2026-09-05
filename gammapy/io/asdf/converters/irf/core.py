@@ -7,10 +7,11 @@ class IRFMapConverter(Converter):
     attr_name = None
 
     def to_yaml_tree(self, obj, tag, ctx):
-        return {
-            self.map_key: getattr(obj, self.attr_name or self.map_key),
-            "exposure_map": obj.exposure_map,
-        }
+        node = {self.map_key: getattr(obj, self.attr_name or self.map_key)}
+        if obj.exposure_map is not None:
+            node["exposure_map"] = obj.exposure_map
+
+        return node
 
     def from_yaml_tree(self, node, tag, ctx):
         return {
