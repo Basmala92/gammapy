@@ -25,9 +25,11 @@ pytest.importorskip("asdf.testing")
 
 def test_models_asdf_roundtrip_skymodel(tmp_path):
     file_path = tmp_path / "test.asdf"
-    spatial_model = GaussianSpatialModel()
+    spatial_model = GaussianSpatialModel(
+        lon_0="10 deg", lat_0="5 deg", sigma="0.5 deg", frame="galactic"
+    )
     spectral_model = PowerLawSpectralModel()
-
+    spectral_model.index.frozen = True
     sky_model = SkyModel(
         spectral_model=spectral_model,
         spatial_model=spatial_model,
@@ -40,10 +42,12 @@ def test_models_asdf_roundtrip_skymodel(tmp_path):
 
     with asdf.open(file_path) as af:
         result = af["models"]
-
-    actual = [par.value for par in models[0].parameters]
-    desired = [par.value for par in result[0].parameters]
-    assert_allclose(actual, desired)
+    for actual, desired in zip(models[0].parameters, result[0].parameters):
+        assert_allclose(actual.value, desired.value)
+        assert actual.unit == desired.unit
+        assert actual.name == desired.name
+        assert actual.frozen == desired.frozen
+    assert result[0].spatial_model.frame == "galactic"
 
 
 def test_models_asdf_roundtrip_temporal(tmp_path):
@@ -61,10 +65,11 @@ def test_models_asdf_roundtrip_temporal(tmp_path):
 
     with asdf.open(file_path) as af:
         result = af["models"]
-
-    actual = [par.value for par in models[0].parameters]
-    desired = [par.value for par in result[0].parameters]
-    assert_allclose(actual, desired)
+    for actual, desired in zip(models[0].parameters, result[0].parameters):
+        assert_allclose(actual.value, desired.value)
+        assert actual.unit == desired.unit
+        assert actual.name == desired.name
+        assert actual.frozen == desired.frozen
 
 
 def test_models_asdf_roundtrip_compound_spectral(tmp_path):
@@ -79,10 +84,12 @@ def test_models_asdf_roundtrip_compound_spectral(tmp_path):
         af.write_to(file_path)
     with asdf.open(file_path) as af:
         result = af["models"]
+    for actual, desired in zip(models[0].parameters, result[0].parameters):
+        assert_allclose(actual.value, desired.value)
+        assert actual.unit == desired.unit
+        assert actual.name == desired.name
+        assert actual.frozen == desired.frozen
 
-    actual = [par.value for par in models[0].parameters]
-    desired = [par.value for par in result[0].parameters]
-    assert_allclose(actual, desired)
     assert result[0].spectral_model.operator == operator.add
 
 
@@ -113,9 +120,12 @@ def test_models_asdf_roundtrip_template_npred(tmp_path):
         af.write_to(file_path)
     with asdf.open(file_path) as af:
         result = af["models"]
-    actual = [par.value for par in models[0].parameters]
-    desired = [par.value for par in result[0].parameters]
-    assert_allclose(actual, desired)
+    for actual, desired in zip(models[0].parameters, result[0].parameters):
+        assert_allclose(actual.value, desired.value)
+        assert actual.unit == desired.unit
+        assert actual.name == desired.name
+        assert actual.frozen == desired.frozen
+
     assert_allclose(result[0].map.data, m.data)
 
 
@@ -137,9 +147,12 @@ def test_models_asdf_roundtrip_template_spatial(tmp_path):
         af.write_to(file_path)
     with asdf.open(file_path) as af:
         result = af["models"]
-    actual = [par.value for par in models[0].parameters]
-    desired = [par.value for par in result[0].parameters]
-    assert_allclose(actual, desired)
+    for actual, desired in zip(models[0].parameters, result[0].parameters):
+        assert_allclose(actual.value, desired.value)
+        assert actual.unit == desired.unit
+        assert actual.name == desired.name
+        assert actual.frozen == desired.frozen
+
     assert_allclose(result[0].spatial_model.map.data, template_model.map.data)
 
 
@@ -147,7 +160,11 @@ def test_models_asdf_roundtrip_covariance(tmp_path):
     file_path = tmp_path / "test.asdf"
     model = SkyModel(spectral_model=PowerLawSpectralModel(), name="test-models-asdf")
     models = Models([model])
-    models.covariance = np.eye(len(models.parameters))
+    n = len(models.parameters)
+    cov = np.eye(n)
+    if n > 1:
+        cov[0, 1] = cov[1, 0] = 0.3
+    models.covariance = cov
 
     with asdf.AsdfFile() as af:
         af["models"] = models
@@ -156,3 +173,26 @@ def test_models_asdf_roundtrip_covariance(tmp_path):
         result = af["models"]
 
     assert_allclose(result.covariance.data, models.covariance.data)
+
+
+def test_models_asdf_roundtrip_linked_parameters(tmp_path):
+    file_path = tmp_path / "test.asdf"
+    model1 = SkyModel(
+        spectral_model=PowerLawSpectralModel(
+            index=2.3, amplitude="4 cm-2 s-1 TeV-1", reference="2 TeV"
+        ),
+        name="model-1",
+    )
+    model2 = SkyModel(spectral_model=PowerLawSpectralModel(), name="model-2")
+
+    model2.spectral_model.index = model1.spectral_model.index
+
+    models = Models([model1, model2])
+
+    with asdf.AsdfFile() as af:
+        af["models"] = models
+        af.write_to(file_path)
+    with asdf.open(file_path) as af:
+        result = af["models"]
+
+    assert result[0].spectral_model.index is result[1].spectral_model.index
