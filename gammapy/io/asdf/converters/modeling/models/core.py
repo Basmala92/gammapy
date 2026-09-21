@@ -7,7 +7,7 @@ class ModelsConverter(Converter):
     types = ["gammapy.modeling.models.core.Models"]
 
     def to_yaml_tree(self, obj, tag, ctx):
-        node = obj.to_dict()
+        node = obj.to_dict(full_output=True)
         node.pop("covariance", None)
         node["covariance_data"] = obj.covariance.data
         return node
